@@ -1,9 +1,11 @@
 ---
-import { listBookings, listRooms, nowLocal } from "../lib/db";
+import { buildCalendar, addDays, formatDateLabel, SLOT_MINUTES } from "../lib/calendar";
+import { listBookings, listRooms, nowLocal, MAX_DURATION_MINUTES } from "../lib/db";
 import "../styles.css";
 
 const rooms = listRooms();
 const bookings = listBookings();
+const now = nowLocal();
 
 const ERROR_TEXT: Record<string, string> = {
   missing: "Every field is required.",
@@ -11,6 +13,7 @@ const ERROR_TEXT: Record<string, string> = {
   "bad-format": "That doesn't look like a valid date and time.",
   "too-long": "Pod and tutor names can't be longer than 80 characters.",
   "bad-range": "The booking has to end after it starts.",
+  "duration-too-long": `Bookings can be at most ${MAX_DURATION_MINUTES / 60} hours long.`,
   conflict: "That room is already booked for part of that time.",
 };
 const errorCode = Astro.url.searchParams.get("error");
@@ -21,11 +24,20 @@ const errorRoomName = errorRoomId
 
 // On a rejected submission, refill the form from what was actually sent —
 // see api/bookings.ts's withInput — rather than making someone retype every
-// field over a single bad one (WCAG 2.2 SC 3.3.7, Redundant Entry).
+// field over a single bad one (WCAG 2.2 SC 3.3.7, Redundant Entry). Clicking
+// an open slot on the calendar below reuses these same three params to
+// prefill a fresh booking instead, with no error involved.
 const resubmitPod = Astro.url.searchParams.get("pod") ?? "";
 const resubmitTutor = Astro.url.searchParams.get("tutor") ?? "";
 const resubmitStartsAt = Astro.url.searchParams.get("startsAt") ?? "";
 const resubmitEndsAt = Astro.url.searchParams.get("endsAt") ?? "";
+const cameFromCalendar = !errorCode && resubmitStartsAt !== "";
+
+const today = now.slice(0, 10);
+const selectedDate = Astro.url.searchParams.get("date") ?? today;
+const prevDate = addDays(selectedDate, -1);
+const nextDate = addDays(selectedDate, 1);
+const { times, grid } = buildCalendar(selectedDate, rooms, bookings, now);
 ---
 
 <!doctype html>
@@ -57,7 +69,7 @@ const resubmitEndsAt = Astro.url.searchParams.get("endsAt") ?? "";
         )
       }
 
-      <form method="post" action="/api/bookings">
+      <form id="book" method="post" action="/api/bookings">
         <div class="field">
           <label for="roomId">Room</label>
           <select id="roomId" name="roomId" required>
@@ -79,6 +91,7 @@ const resubmitEndsAt = Astro.url.searchParams.get("endsAt") ?? "";
             maxlength="80"
             placeholder="e.g. Dachi"
             value={resubmitPod}
+            autofocus={cameFromCalendar}
           />
         </div>
         <div class="field">
@@ -97,59 +110,90 @@ const resubmitEndsAt = Astro.url.searchParams.get("endsAt") ?? "";
             id="startsAt"
             name="startsAt"
             type="datetime-local"
+            step={SLOT_MINUTES * 60}
             required
             value={resubmitStartsAt}
           />
         </div>
         <div class="field">
           <label for="endsAt">Ends</label>
-          <input id="endsAt" name="endsAt" type="datetime-local" required value={resubmitEndsAt} />
+          <input
+            id="endsAt"
+            name="endsAt"
+            type="datetime-local"
+            step={SLOT_MINUTES * 60}
+            required
+            value={resubmitEndsAt}
+          />
         </div>
         <button>Book the room</button>
       </form>
+      <p class="hint">Bookings can be up to {MAX_DURATION_MINUTES / 60} hours long.</p>
 
       <h2>Schedule</h2>
-      {
-        bookings.length === 0 ? (
-          <p>No bookings yet.</p>
-        ) : (
-          <div class="table-scroll" tabindex="0" role="region" aria-label="Schedule">
-            <table>
-              <thead>
+      <nav class="cal-nav" aria-label="Calendar date">
+        <a href={`/?date=${prevDate}`}>&larr; {formatDateLabel(prevDate)}</a>
+        <strong>{formatDateLabel(selectedDate)}</strong>
+        <a href={`/?date=${nextDate}`}>{formatDateLabel(nextDate)} &rarr;</a>
+        {selectedDate !== today && <a href="/">Today</a>}
+      </nav>
+      <p>Click an open slot to start a booking for that room and time.</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Schedule calendar">
+        <table class="calendar">
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              {rooms.map((room) => <th scope="col">{room.name}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {
+              times.map((time, rowIndex) => (
                 <tr>
-                  <th scope="col">Room</th>
-                  <th scope="col">Pod</th>
-                  <th scope="col">Tutor</th>
-                  <th scope="col">Starts</th>
-                  <th scope="col">Ends</th>
+                  <th scope="row">{time}</th>
+                  {
+                    rooms.map((room, roomIndex) => {
+                      const cell = grid[rowIndex][roomIndex];
+                      if (cell.kind === "covered") return null;
+
+                      if (cell.kind === "booking") {
+                        const { booking, rowSpan, isPast } = cell;
+                        return (
+                          <td rowspan={rowSpan} class={`cal-booking ${isPast ? "past" : ""}`}>
+                            <strong>{booking.pod}</strong>
+                            {booking.tutor && <> — {booking.tutor}</>}
+                            <br />
+                            <span class="cal-time">
+                              {booking.startsAt.slice(11)}–{booking.endsAt.slice(11)}
+                              {isPast && " (past)"}
+                            </span>
+                          </td>
+                        );
+                      }
+
+                      if (!cell.bookable) {
+                        return <td class="cal-unbookable"></td>;
+                      }
+
+                      return (
+                        <td class="cal-empty">
+                          <a
+                            class="cal-book-link"
+                            href={`/?date=${selectedDate}&roomId=${room.id}&startsAt=${cell.startsAt}&endsAt=${cell.endsAt}#book`}
+                            aria-label={`Book ${room.name} at ${time} on ${formatDateLabel(selectedDate)}`}
+                          >
+                            +
+                          </a>
+                        </td>
+                      );
+                    })
+                  }
                 </tr>
-              </thead>
-              <tbody id="schedule">
-                {/* tr.past dims a finished booking, but colour alone can't be the
-                    only way to tell — WCAG 1.4.1, and axe-core has no rule that
-                    catches it since it can't judge what a colour means. The text
-                    suffix below is the real signal; the dimming is just a bonus
-                    for a sighted skim. */}
-                {bookings.map((booking) => {
-                  const isPast = booking.endsAt < nowLocal();
-                  return (
-                    <tr class={isPast ? "past" : undefined}>
-                      <td>{booking.roomName}</td>
-                      <td>{booking.pod}</td>
-                      <td>{booking.tutor ?? "—"}</td>
-                      <td>{booking.startsAt.replace("T", " ")}</td>
-                      <td>
-                        {booking.endsAt.replace("T", " ")}
-                        {isPast && " (past)"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )
-      }
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
 
       <h2 id="live-heading">Just booked</h2>
       <p>New bookings from other tabs appear here as they happen.</p>

@@ -126,8 +126,35 @@ export type CreateBookingResult =
   | { ok: true; booking: BookingWithRoom }
   | {
       ok: false;
-      reason: "unknown-room" | "bad-format" | "too-long" | "bad-range" | "conflict";
+      reason:
+        | "unknown-room"
+        | "bad-format"
+        | "too-long"
+        | "bad-range"
+        | "duration-too-long"
+        | "conflict";
     };
+
+// A pod's crit session doesn't need a whole room for half a day — capping
+// booking length keeps one pod from parking in a room and starving everyone
+// else, the same reasoning `too-long` already applies to the pod/tutor names.
+export const MAX_DURATION_MINUTES = 120;
+
+// Treats each timestamp's digits as if they were UTC. The actual timezone
+// (Australia/Canberra) never enters this calculation, because a *difference*
+// between two of this app's own timestamps is the same regardless of which
+// consistent offset you parse both of them with — the same reasoning
+// `nowLocal` and the overlap check above already rely on for this file's
+// timezone-less strings.
+export function durationMinutes(startsAt: string, endsAt: string): number {
+  const toEpochMinutes = (ts: string): number => {
+    const [datePart, timePart] = ts.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart.split(":").map(Number);
+    return Date.UTC(year, month - 1, day, hour, minute) / 60_000;
+  };
+  return toEpochMinutes(endsAt) - toEpochMinutes(startsAt);
+}
 
 // The one shape every timestamp in this app is allowed to take (see the
 // schema's own comment on why lexicographic string comparison is enough).
@@ -171,6 +198,9 @@ export function createBooking(input: NewBooking): CreateBookingResult {
     return { ok: false, reason: "too-long" };
   }
   if (!(input.startsAt < input.endsAt)) return { ok: false, reason: "bad-range" };
+  if (durationMinutes(input.startsAt, input.endsAt) > MAX_DURATION_MINUTES) {
+    return { ok: false, reason: "duration-too-long" };
+  }
   if (findConflict(input.roomId, input.startsAt, input.endsAt)) {
     return { ok: false, reason: "conflict" };
   }

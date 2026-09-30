@@ -172,7 +172,7 @@ table {
   border-collapse: collapse;
 }
 
-th {
+thead th {
   text-align: left;
   padding: 0.5rem 0.6rem;
   background: var(--anu-black);
@@ -192,7 +192,90 @@ tbody tr:hover {
   background: var(--anu-gold-tint);
 }
 
-tr.past {
+.hint {
+  font-size: 0.85rem;
+  color: var(--anu-grey);
+  margin-top: -1rem;
+}
+
+.cal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+}
+
+.cal-nav a {
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+table.calendar {
+  table-layout: fixed;
+}
+
+table.calendar th,
+table.calendar td {
+  border: 1px solid var(--anu-border);
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.85rem;
+  padding: 0.3rem;
+}
+
+table.calendar thead th:first-child {
+  width: 4.5rem;
+}
+
+table.calendar tbody th[scope="row"] {
+  background: none;
+  color: var(--anu-grey);
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+  border-left: none;
+}
+
+.cal-empty {
+  padding: 0;
+}
+
+.cal-book-link {
+  display: block;
+  padding: 0.3rem;
+  text-decoration: none;
+  color: var(--anu-gold);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.cal-book-link:hover,
+.cal-book-link:focus-visible {
+  background: var(--anu-gold-tint);
+  outline: 2px solid var(--anu-gold);
+  outline-offset: -2px;
+}
+
+.cal-unbookable {
+  background: repeating-linear-gradient(45deg, #f6f6f6, #f6f6f6 5px, #eee 5px, #eee 10px);
+}
+
+.cal-booking {
+  background: var(--anu-gold-tint);
+  text-align: left;
+  vertical-align: top;
+}
+
+.cal-booking.past {
+  background: #f0f0f0;
+  color: var(--anu-grey);
+}
+
+.cal-time {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
   color: var(--anu-grey);
 }
 

@@ -57,7 +57,10 @@ describe("bookings", () => {
       "/api/bookings",
       booking({ pod, roomId: "1", startsAt: "2031-02-02T09:00", endsAt: "2031-02-02T10:00" }),
     );
-    const res = await fetch(baseUrl);
+    // The schedule is now a per-day calendar (see src/lib/calendar.ts), not an
+    // unfiltered list — it only shows a booking on the day it starts, so the
+    // reload has to ask for that same day.
+    const res = await fetch(new URL("/?date=2031-02-02", baseUrl));
     expect(await res.text()).toContain(pod);
   });
 
@@ -106,7 +109,7 @@ describe("bookings", () => {
     expect(redirectParams(secondRes).get("error")).toBe("conflict");
     expect(redirectParams(secondRes).get("roomId")).toBe("3");
 
-    const body = await (await fetch(baseUrl)).text();
+    const body = await (await fetch(new URL("/?date=2031-03-01", baseUrl))).text();
     expect(body).toContain(first);
     expect(body).not.toContain(second);
   });
@@ -135,7 +138,7 @@ describe("bookings", () => {
     expect(secondRes.status).toBe(303);
     expect(secondRes.headers.get("location")).toBe("/");
 
-    const body = await (await fetch(baseUrl)).text();
+    const body = await (await fetch(new URL("/?date=2031-05-01", baseUrl))).text();
     expect(body).toContain(first);
     expect(body).toContain(second);
   });
@@ -211,6 +214,35 @@ describe("bookings", () => {
 
     const body = await (await fetch(baseUrl)).text();
     expect(body).not.toContain(pod);
+  });
+
+  it("rejects a booking longer than 2 hours", async () => {
+    const pod = `too-long-duration ${process.hrtime.bigint()}`;
+    const res = await post(
+      "/api/bookings",
+      booking({ pod, roomId: "4", startsAt: "2031-08-01T09:00", endsAt: "2031-08-01T11:01" }),
+    );
+    expect(redirectParams(res).get("error")).toBe("duration-too-long");
+    expect(redirectParams(res).get("roomId")).toBe("4");
+
+    const body = await (await fetch(new URL("/?date=2031-08-01", baseUrl))).text();
+    expect(body).not.toContain(pod);
+  });
+
+  it("allows a booking exactly at the 2-hour cap", async () => {
+    // The cap is "at most 2 hours" — exactly 120 minutes has to succeed, not
+    // just anything under it, or a future edit could silently tighten `>` to
+    // `>=` and nothing here would catch it.
+    const pod = `two-hour-cap ${process.hrtime.bigint()}`;
+    const res = await post(
+      "/api/bookings",
+      booking({ pod, roomId: "4", startsAt: "2031-08-02T09:00", endsAt: "2031-08-02T11:00" }),
+    );
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/");
+
+    const body = await (await fetch(new URL("/?date=2031-08-02", baseUrl))).text();
+    expect(body).toContain(pod);
   });
 
   it("refills the form with what was submitted after a rejection", async () => {
