@@ -1,25 +1,88 @@
+/* ANU brand: gold #BE830E + gold tint #F5EDDE, black, white.
+   https://webpublishing.anu.edu.au — restrained gold-as-accent, black/white doing the work. */
+:root {
+  --anu-black: #000;
+  --anu-gold: #be830e;
+  --anu-gold-tint: #f5edde;
+  --anu-grey: #595959;
+  --anu-border: #ddd;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  padding: 2rem;
-  font-family: system-ui, sans-serif;
+  font-family: "Helvetica Neue", Arial, system-ui, sans-serif;
   line-height: 1.6;
-  color: #1a1a1a;
+  color: var(--anu-black);
+  background: #fff;
 }
 
 main {
   max-width: 40rem;
   margin: 0 auto;
+  padding: 2rem;
 }
 
 nav {
   display: flex;
-  gap: 1rem;
-  max-width: 40rem;
-  margin: 0 auto 1.5rem;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: var(--anu-black);
+  border-bottom: 4px solid var(--anu-gold);
+}
+
+nav a {
+  color: #fff;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  padding-block: 0.2rem;
+  border-bottom: 2px solid transparent;
+}
+
+nav a:first-child {
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+nav a:hover,
+nav a:focus-visible {
+  border-bottom-color: var(--anu-gold);
+}
+
+h1,
+h2 {
+  font-weight: 700;
+}
+
+h1 {
+  border-bottom: 3px solid var(--anu-gold);
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  margin-top: 2.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--anu-border);
 }
 
 a {
-  color: #0b5fff;
+  color: var(--anu-black);
+  text-decoration: underline;
+  text-decoration-color: var(--anu-gold);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration-thickness: 3px;
 }
 
 form {
@@ -28,6 +91,9 @@ form {
   gap: 0.5rem;
   align-items: end;
   margin-block: 1.5rem;
+  padding: 1.25rem;
+  background: var(--anu-gold-tint);
+  border-left: 4px solid var(--anu-gold);
 }
 
 .field {
@@ -38,6 +104,11 @@ form {
   min-width: 0;
 }
 
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 input,
 select {
   box-sizing: border-box;
@@ -45,11 +116,37 @@ select {
   min-width: 0;
   padding: 0.4rem 0.6rem;
   font: inherit;
+  border: 1px solid var(--anu-grey);
+  border-radius: 2px;
+  background: #fff;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--anu-gold);
+  outline-offset: 1px;
 }
 
 button {
-  padding: 0.4rem 1rem;
+  padding: 0.5rem 1.2rem;
   font: inherit;
+  font-weight: 600;
+  background: var(--anu-black);
+  color: #fff;
+  border: 2px solid var(--anu-black);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--anu-gold);
+  border-color: var(--anu-gold);
+  color: var(--anu-black);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--anu-gold);
+  outline-offset: 2px;
 }
 
 .error {
@@ -65,20 +162,38 @@ button {
   margin-block: 1rem;
 }
 
+.table-scroll:focus-visible {
+  outline: 3px solid var(--anu-gold);
+  outline-offset: 2px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
 }
 
-th,
+th {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  background: var(--anu-black);
+  color: #fff;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 td {
   text-align: left;
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid #ddd;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--anu-border);
+}
+
+tbody tr:hover {
+  background: var(--anu-gold-tint);
 }
 
 tr.past {
-  color: #595959;
+  color: var(--anu-grey);
 }
 
 #live {
